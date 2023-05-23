@@ -12,6 +12,8 @@ import java.util.concurrent.TimeUnit;
  *         -------------------------------------------------------'
  * queue2 '---offer---> data5 ---> data6 ---> data7 ---poll---> end
  *
+ * <p>多消费者消费同一个Queue</p>
+ *
  * @author ceilzcx
  * @since 23/5/2023
  */
