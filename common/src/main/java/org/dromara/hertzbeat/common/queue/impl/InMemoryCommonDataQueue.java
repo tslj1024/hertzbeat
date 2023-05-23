@@ -42,23 +42,20 @@ import java.util.concurrent.TimeUnit;
 public class InMemoryCommonDataQueue implements CommonDataQueue, DisposableBean {
 
     private final LinkedBlockingQueue<Alert> alertDataQueue;
-    private final LinkedBlockingQueue<CollectRep.MetricsData> metricsDataToAlertQueue;
-    private final LinkedBlockingQueue<CollectRep.MetricsData> metricsDataToPersistentStorageQueue;
-    private final LinkedBlockingQueue<CollectRep.MetricsData> metricsDataToMemoryStorageQueue;
+    private final MultiCommonDataQueue<CollectRep.MetricsData> metricsDataQueue;
 
     public InMemoryCommonDataQueue() {
         alertDataQueue = new LinkedBlockingQueue<>();
-        metricsDataToAlertQueue = new LinkedBlockingQueue<>();
-        metricsDataToPersistentStorageQueue = new LinkedBlockingQueue<>();
-        metricsDataToMemoryStorageQueue = new LinkedBlockingQueue<>();
+        metricsDataQueue = new MultiCommonDataQueue<>(3);
     }
 
     public Map<String, Integer> getQueueSizeMetricsInfo() {
         Map<String, Integer> metrics = new HashMap<>(8);
         metrics.put("alertDataQueue", alertDataQueue.size());
-        metrics.put("metricsDataToAlertQueue", metricsDataToAlertQueue.size());
-        metrics.put("metricsDataToPersistentStorageQueue", metricsDataToPersistentStorageQueue.size());
-        metrics.put("metricsDataToMemoryStorageQueue", metricsDataToMemoryStorageQueue.size());
+        int[] queueSizeMetricsInfo = metricsDataQueue.getQueueSizeMetricsInfo();
+        metrics.put("metricsDataToAlertQueue", queueSizeMetricsInfo[0]);
+        metrics.put("metricsDataToPersistentStorageQueue", queueSizeMetricsInfo[1]);
+        metrics.put("metricsDataToMemoryStorageQueue", queueSizeMetricsInfo[2]);
         return metrics;
     }
 
@@ -74,31 +71,27 @@ public class InMemoryCommonDataQueue implements CommonDataQueue, DisposableBean 
 
     @Override
     public CollectRep.MetricsData pollAlertMetricsData() throws InterruptedException {
-        return metricsDataToAlertQueue.poll(2, TimeUnit.SECONDS);
+        return metricsDataQueue.poll(0);
     }
 
     @Override
     public CollectRep.MetricsData pollPersistentStorageMetricsData() throws InterruptedException {
-        return metricsDataToPersistentStorageQueue.poll(2, TimeUnit.SECONDS);
+        return metricsDataQueue.poll(1);
     }
 
     @Override
     public CollectRep.MetricsData pollRealTimeStorageMetricsData() throws InterruptedException {
-        return metricsDataToMemoryStorageQueue.poll(2, TimeUnit.SECONDS);
+        return metricsDataQueue.poll(2);
     }
 
     @Override
     public void sendMetricsData(CollectRep.MetricsData metricsData) {
-        metricsDataToAlertQueue.offer(metricsData);
-        metricsDataToPersistentStorageQueue.offer(metricsData);
-        metricsDataToMemoryStorageQueue.offer(metricsData);
+        metricsDataQueue.offer(metricsData);
     }
 
     @Override
     public void destroy() {
         alertDataQueue.clear();
-        metricsDataToAlertQueue.clear();
-        metricsDataToPersistentStorageQueue.clear();
-        metricsDataToMemoryStorageQueue.clear();
+        metricsDataQueue.clear();
     }
 }

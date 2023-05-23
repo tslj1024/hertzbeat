@@ -1,15 +1,17 @@
 package org.dromara.hertzbeat.common.queue.impl;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * queue0 start ---offer---> data1 ---> data2 ---> data3 ---poll---
- *         -------------------------------------------------------'
+ * -------------------------------------------------------'
  * queue1 '---offer---> data3 ---> data4 ---> data5 ---poll--------
- *         -------------------------------------------------------'
+ * -------------------------------------------------------'
  * queue2 '---offer---> data5 ---> data6 ---> data7 ---poll---> end
  *
  * <p>多消费者消费同一个Queue</p>
@@ -27,7 +29,9 @@ public class MultiCommonDataQueue<T> {
     /**
      * 消费者消费偏移量
      */
-    private final int[] offsetList;
+    private int[] offsetList;
+
+    private final Lock lock = new ReentrantLock();
 
     public MultiCommonDataQueue(int size) {
         this.dataList = new ArrayList<>(size);
@@ -41,6 +45,7 @@ public class MultiCommonDataQueue<T> {
 
     /**
      * 向Queue中添加数据, 只往第一个Queue添加
+     *
      * @param data 采集数据
      */
     public void offer(T data) {
@@ -50,30 +55,47 @@ public class MultiCommonDataQueue<T> {
     /**
      * Queue消费数据
      * 思路: 先确认应该消费哪个Queue, 根据偏移量计算; 成功获取数据后, 修改偏移量, 并将数据放入下一个Queue
+     *
      * @param i 消费者index
      * @return 采集数据
      * @throws InterruptedException 中断异常
      */
-    public synchronized T poll(int i) throws InterruptedException {
+    public T poll(int i) throws InterruptedException {
         // 消费第几个Queue, offset越小代表消费的数据越少, 更应该消费靠下的Queue
         int position = 0;
-        int presentOffset = this.offsetList[i];
-        for (int offset : this.offsetList) {
-            if (offset > presentOffset) {
-                position++;
+        T data = null;
+        LinkedBlockingQueue<T> queue;
+        try {
+            this.lock.lock();
+            int presentOffset = this.offsetList[i];
+            for (int offset : this.offsetList) {
+                if (offset > presentOffset) {
+                    position++;
+                }
             }
-        }
-        LinkedBlockingQueue<T> queue = this.dataList.get(position);
-        T data = queue.poll(2, TimeUnit.SECONDS);
-        if (data != null) {
+            queue = this.dataList.get(position);
             // 消费数据不为null, 偏移量+1
-            this.offsetList[i]++;
-            if (position + 1 < this.dataList.size()) {
-                // 将消费的数据放入下一个Queue
-                this.dataList.get(position + 1).offer(data);
+            if (!queue.isEmpty()) {
+                this.offsetList[i]++;
+                data = queue.poll();
+                if (position + 1 < this.dataList.size()) {
+                    // 将消费的数据放入下一个Queue
+                    this.dataList.get(position + 1).offer(data);
+                }
             }
+        } finally {
+            this.lock.unlock();
         }
-        return data;
+        if (data != null) {
+            System.out.printf("i=%d, position=%d, offset=%d, offsetList=%s, queueSizeList=%s, data=%s\n",
+                    i, position, offsetList[i], Arrays.toString(offsetList),
+                    Arrays.toString(dataList.stream().map(LinkedBlockingQueue::size).toArray()),
+                    "not null");
+            return data;
+        }
+
+        Thread.sleep(2000);
+        return null;
     }
 
     public int[] getQueueSizeMetricsInfo() {
@@ -87,5 +109,13 @@ public class MultiCommonDataQueue<T> {
             queueSizeInfo[i] = sumSize - offsetList[i] + minOffset;
         }
         return queueSizeInfo;
+    }
+
+    public void clear() {
+        for (LinkedBlockingQueue<T> queue : this.dataList) {
+            queue.clear();
+        }
+        this.dataList.clear();
+        this.offsetList = null;
     }
 }
