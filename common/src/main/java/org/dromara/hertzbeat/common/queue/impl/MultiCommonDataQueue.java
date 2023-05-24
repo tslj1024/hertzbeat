@@ -4,14 +4,16 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * queue0 start ---offer---> data1 ---> data2 ---> data3 ---poll---
- *         -------------------------------------------------------'
+ * -------------------------------------------------------'
  * queue1 '---offer---> data3 ---> data4 ---> data5 ---poll--------
- *         -------------------------------------------------------'
+ * -------------------------------------------------------'
  * queue2 '---offer---> data5 ---> data6 ---> data7 ---poll---> end
  *
  * <p>多消费者消费同一个Queue</p>
@@ -32,6 +34,10 @@ public class MultiCommonDataQueue<T> {
     private int[] offsetList;
 
     private final Lock lock = new ReentrantLock();
+
+    private final Lock waitLock = new ReentrantLock();
+
+    private final Condition waitCondition = waitLock.newCondition();
 
     public MultiCommonDataQueue(int size) {
         this.dataList = new ArrayList<>(size);
@@ -87,15 +93,28 @@ public class MultiCommonDataQueue<T> {
             this.lock.unlock();
         }
         if (data != null) {
-            System.out.printf("i=%d, position=%d, offset=%d, offsetList=%s, queueSizeList=%s, data=%s\n",
-                    i, position, offsetList[i], Arrays.toString(offsetList),
-                    Arrays.toString(dataList.stream().map(LinkedBlockingQueue::size).toArray()),
-                    "not null");
+            System.out.printf("time=%d, i=%d, position=%d, offset=%d, offsetList=%s, queueSizeList=%s, data=%s\n",
+                    System.currentTimeMillis(), i, position, offsetList[i], Arrays.toString(offsetList),
+                    Arrays.toString(dataList.stream().map(LinkedBlockingQueue::size).toArray()), "not null");
             return data;
         }
 
-        Thread.sleep(2000);
-        return null;
+        System.out.printf("time=%d, i=%d, position=%d, offset=%d, offsetList=%s, queueSizeList=%s, data=%s\n",
+                System.currentTimeMillis(), i, position, offsetList[i], Arrays.toString(offsetList),
+                Arrays.toString(dataList.stream().map(LinkedBlockingQueue::size).toArray()), "null");
+
+        this.waitLock.lockInterruptibly();
+        try {
+            long nanos = TimeUnit.SECONDS.toNanos(2);
+            while (true) {
+                if (nanos <= 0L) {
+                    return null;
+                }
+                nanos = this.waitCondition.awaitNanos(nanos);
+            }
+        } finally {
+            this.waitLock.unlock();
+        }
     }
 
     public int[] getQueueSizeMetricsInfo() {
