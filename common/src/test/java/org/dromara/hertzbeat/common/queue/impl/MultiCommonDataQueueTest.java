@@ -1,7 +1,6 @@
 package org.dromara.hertzbeat.common.queue.impl;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.util.Assert;
 
 import java.util.concurrent.CountDownLatch;
 
