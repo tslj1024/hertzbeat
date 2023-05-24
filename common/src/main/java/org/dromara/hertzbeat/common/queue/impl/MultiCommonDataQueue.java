@@ -39,11 +39,14 @@ public class MultiCommonDataQueue<T> {
 
     private final Condition waitCondition = waitLock.newCondition();
 
-    public MultiCommonDataQueue(int size) {
-        this.dataList = new ArrayList<>(size);
-        this.offsetList = new int[size];
+    public MultiCommonDataQueue(int consumerSize) {
+        if (consumerSize <= 1) {
+            throw new IllegalArgumentException("the consumer size must greater than 1, or you can use single queue.");
+        }
+        this.dataList = new ArrayList<>(consumerSize);
+        this.offsetList = new int[consumerSize];
 
-        for (int i = 0; i < size; i++) {
+        for (int i = 0; i < consumerSize; i++) {
             offsetList[i] = 0;
             dataList.add(new LinkedBlockingQueue<>());
         }
@@ -62,18 +65,18 @@ public class MultiCommonDataQueue<T> {
      * Queue消费数据
      * 思路: 先确认应该消费哪个Queue, 根据偏移量计算; 成功获取数据后, 修改偏移量, 并将数据放入下一个Queue
      *
-     * @param i 消费者index
+     * @param consumerIndex 消费者index
      * @return 采集数据
      * @throws InterruptedException 中断异常
      */
-    public T poll(int i) throws InterruptedException {
+    public T poll(int consumerIndex) throws InterruptedException {
         // 消费第几个Queue, offset越小代表消费的数据越少, 更应该消费靠下的Queue
         int position = 0;
         T data = null;
         LinkedBlockingQueue<T> queue;
         try {
             this.lock.lock();
-            int presentOffset = this.offsetList[i];
+            int presentOffset = this.offsetList[consumerIndex];
             for (int offset : this.offsetList) {
                 if (offset > presentOffset) {
                     position++;
@@ -82,7 +85,7 @@ public class MultiCommonDataQueue<T> {
             queue = this.dataList.get(position);
             // 消费数据不为null, 偏移量+1
             if (!queue.isEmpty()) {
-                this.offsetList[i]++;
+                this.offsetList[consumerIndex]++;
                 data = queue.poll();
                 if (position + 1 < this.dataList.size()) {
                     // 将消费的数据放入下一个Queue
@@ -94,13 +97,13 @@ public class MultiCommonDataQueue<T> {
         }
         if (data != null) {
             System.out.printf("time=%d, i=%d, position=%d, offset=%d, offsetList=%s, queueSizeList=%s, data=%s\n",
-                    System.currentTimeMillis(), i, position, offsetList[i], Arrays.toString(offsetList),
+                    System.currentTimeMillis(), consumerIndex, position, offsetList[consumerIndex], Arrays.toString(offsetList),
                     Arrays.toString(dataList.stream().map(LinkedBlockingQueue::size).toArray()), "not null");
             return data;
         }
 
         System.out.printf("time=%d, i=%d, position=%d, offset=%d, offsetList=%s, queueSizeList=%s, data=%s\n",
-                System.currentTimeMillis(), i, position, offsetList[i], Arrays.toString(offsetList),
+                System.currentTimeMillis(), consumerIndex, position, offsetList[consumerIndex], Arrays.toString(offsetList),
                 Arrays.toString(dataList.stream().map(LinkedBlockingQueue::size).toArray()), "null");
 
         this.waitLock.lockInterruptibly();
