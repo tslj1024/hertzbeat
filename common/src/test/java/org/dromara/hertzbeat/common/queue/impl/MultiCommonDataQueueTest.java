@@ -1,5 +1,6 @@
 package org.dromara.hertzbeat.common.queue.impl;
 
+import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.CountDownLatch;
@@ -10,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * test for MultiCommonDataQueue
  * @author tom
  */
+@Slf4j
 class MultiCommonDataQueueTest {
 	
 	@Test
@@ -55,6 +57,7 @@ class MultiCommonDataQueueTest {
 	
 	@Test
 	void poll() {
+		long startTime = System.currentTimeMillis();
 		MultiCommonDataQueue<Integer> multiDataQueue = new MultiCommonDataQueue<>(5);
 		for (int i = 0; i < 1000; i++) {
 			multiDataQueue.offer( i);
@@ -103,6 +106,7 @@ class MultiCommonDataQueueTest {
 		try {
 			latch.await();
 		} catch (InterruptedException ignored) {}
+		log.info("MultiCommonDataQueue poll test spend: {} ms.", System.currentTimeMillis() - startTime);
 		int[] queueSize = multiDataQueue.getQueueSizeMetricsInfo();
 		assertEquals(5, queueSize.length);
 		assertEquals(0, queueSize[0]);
