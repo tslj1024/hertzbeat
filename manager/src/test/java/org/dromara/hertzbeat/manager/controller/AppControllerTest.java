@@ -102,7 +102,7 @@ class AppControllerTest {
         list.add(hierarchy);
 
         // The interface is called to return manufactured data｜ 调用接口返回制造的数据
-        Mockito.when(appService.getAllAppHierarchy("zh-CN"))
+        Mockito.when(appService.getAllAppHierarchy("zh-CN", false))
                 .thenReturn(list);
 
         // Request interface ｜ 请求接口

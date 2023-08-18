@@ -50,7 +50,7 @@ export class DefineComponent implements OnInit {
 
   loadMenus() {
     const getHierarchy$ = this.appDefineSvc
-      .getAppHierarchy(this.i18nSvc.defaultLang)
+      .getAppHierarchy(this.i18nSvc.defaultLang, false)
       .pipe(
         finalize(() => {
           getHierarchy$.unsubscribe();

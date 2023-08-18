@@ -347,3 +347,20 @@ CREATE TABLE  hzb_collector_monitor_bind
 ) ENGINE = InnoDB DEFAULT CHARSET=utf8mb4;
 
 COMMIT;
+
+-- ----------------------------
+-- Table structure for hzb_app_setting
+-- ----------------------------
+DROP TABLE IF EXISTS hzb_app_setting;
+create table hzb_app_setting
+(
+    id         bigint       not null comment '监控类型设置ID',
+    app_name   varchar(100) not null comment '监控类型名称',
+    display    tinyint(2)   not null comment '是否展示',
+    creator    varchar(100) comment '创建者',
+    modifier   varchar(100) comment '最新修改者',
+    gmt_create timestamp default current_timestamp comment 'create time',
+    gmt_update datetime  default current_timestamp on update current_timestamp comment 'update time',
+    primary key (id),
+    index query_index (app_name)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;

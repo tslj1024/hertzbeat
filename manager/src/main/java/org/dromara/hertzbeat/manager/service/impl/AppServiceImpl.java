@@ -17,10 +17,13 @@
 
 package org.dromara.hertzbeat.manager.service.impl;
 
+import org.dromara.hertzbeat.common.entity.manager.AppSetting;
 import org.dromara.hertzbeat.common.entity.job.Job;
 import org.dromara.hertzbeat.common.entity.job.Metrics;
 import org.dromara.hertzbeat.common.entity.manager.Monitor;
 import org.dromara.hertzbeat.common.support.SpringContextHolder;
+import org.dromara.hertzbeat.common.util.SnowFlakeIdGenerator;
+import org.dromara.hertzbeat.manager.dao.AppSettingDao;
 import org.dromara.hertzbeat.manager.dao.MonitorDao;
 import org.dromara.hertzbeat.manager.pojo.dto.Hierarchy;
 import org.dromara.hertzbeat.common.entity.manager.ParamDefine;
@@ -68,6 +71,9 @@ public class AppServiceImpl implements AppService, CommandLineRunner {
     
     @Autowired
     private MonitorDao monitorDao;
+
+    @Autowired
+    private AppSettingDao appSettingDao;
 
     private final Map<String, Job> appDefines = new ConcurrentHashMap<>();
 
@@ -148,9 +154,19 @@ public class AppServiceImpl implements AppService, CommandLineRunner {
     }
 
     @Override
-    public List<Hierarchy> getAllAppHierarchy(String lang) {
+    public List<Hierarchy> getAllAppHierarchy(String lang, boolean isFilter) {
         List<Hierarchy> hierarchies = new LinkedList<>();
+
+        List<AppSetting> appSettingList = appSettingDao.findAll();
+        Set<String> notDisplayAppNames = appSettingList.stream()
+            .filter(setting -> !setting.isDisplay())
+            .map(AppSetting::getAppName)
+            .collect(Collectors.toSet());
+
         for (Job job : appDefines.values()) {
+            if (isFilter && notDisplayAppNames.contains(job.getApp())) {
+                continue;
+            }
             Hierarchy hierarchyApp = new Hierarchy();
             hierarchyApp.setCategory(job.getCategory());
             hierarchyApp.setValue(job.getApp());
@@ -254,6 +270,7 @@ public class AppServiceImpl implements AppService, CommandLineRunner {
             throw new RuntimeException("flush file " + defineAppPath + " error: " + e.getMessage());
         }
         appDefines.put(app.getApp().toLowerCase(), app);
+        this.addAppSetting(app.getApp());
         // bug  当模板 app-redis.yml被修改，比如 增加指标组，删除指标，当前的job中，持有的缓存 metrics实例，
         // 解决 ：模板修改后，同类型模板的所有监控实例 ，在监控状态中，需要重新下发任务
         SpringContextHolder.getBean(MonitorService.class).updateAppCollectJob(app);
@@ -354,6 +371,7 @@ public class AppServiceImpl implements AppService, CommandLineRunner {
                         Job app = yaml.loadAs(fileInputStream, Job.class);
                         if (app != null) {
                             appDefines.put(app.getApp().toLowerCase(), app);
+                            this.addAppSetting(app.getApp());
                         }
                     } catch (IOException e) {
                         log.error(e.getMessage(), e);
@@ -361,6 +379,18 @@ public class AppServiceImpl implements AppService, CommandLineRunner {
                     }
                 }
             }
+        }
+    }
+
+    private void addAppSetting(String appName) {
+        List<AppSetting> appSettingList = appSettingDao.findByAppName(appName);
+        if (appSettingList.isEmpty()) {
+            long appSettingId = SnowFlakeIdGenerator.generateId();
+            AppSetting appSetting = new AppSetting();
+            appSetting.setId(appSettingId);
+            appSetting.setAppName(appName);
+            appSetting.setDisplay(true);
+            appSettingDao.save(appSetting);
         }
     }
 }

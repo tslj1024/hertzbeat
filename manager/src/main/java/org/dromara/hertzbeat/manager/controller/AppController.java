@@ -27,6 +27,7 @@ import org.dromara.hertzbeat.manager.service.AppService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.dromara.hertzbeat.manager.service.AppSettingService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -49,6 +50,9 @@ public class AppController {
 
     @Autowired
     private AppService appService;
+
+    @Autowired
+    private AppSettingService appSettingService;
 
     @GetMapping(path = "/{app}/params")
     @Operation(summary = "The structure of the input parameters required to specify the monitoring type according to the app query", description = "根据app查询指定监控类型的需要输入参数的结构")
@@ -100,7 +104,7 @@ public class AppController {
         }
         return ResponseEntity.ok(Message.<Void>builder().build());
     }
-    
+
     @PutMapping(path = "/define/yml")
     @Operation(summary = "Update monitoring type define yml", description = "更新监控类型的定义YML")
     public ResponseEntity<Message<Void>> updateAppDefineYml(@Valid @RequestBody MonitorDefineDto defineDto) {
@@ -117,9 +121,9 @@ public class AppController {
     @GetMapping(path = "/hierarchy")
     @Operation(summary = "Query all monitored types-indicator group-indicator level, output in a hierarchical structure", description = "查询所有监控的类型-指标组-指标层级,以层级结构输出")
     public ResponseEntity<Message<List<Hierarchy>>> queryAppsHierarchy(
-            @Parameter(description = "en: language type,zh: 语言类型",
-                    example = "zh-CN")
-            @RequestParam(name = "lang", required = false) String lang) {
+            @Parameter(description = "en: language type,zh: 语言类型", example = "zh-CN")
+            @RequestParam(name = "lang", required = false) String lang,
+            @RequestParam(name = "isFilter", required = false) boolean isFilter) {
         if (lang == null || "".equals(lang)) {
             lang = "zh-CN";
         }
@@ -130,7 +134,22 @@ public class AppController {
         } else {
             lang = "en-US";
         }
-        List<Hierarchy> appHierarchies = appService.getAllAppHierarchy(lang);
+        List<Hierarchy> appHierarchies = appService.getAllAppHierarchy(lang, isFilter);
         return ResponseEntity.ok(new Message<>(appHierarchies));
+    }
+
+    @PutMapping(path = "/setting/switch")
+    @Operation(summary = "setting sidebar display or not app name", description = "设置侧边栏展示或不展示监控类型")
+    public ResponseEntity<Message<Void>> switchAppSettingDisplay(
+            @Parameter(description = "en: app name,zh: 监控类型名称", example = "windows")
+            @RequestParam(name = "appName") String appName) {
+        try {
+            appSettingService.switchAppSettingDisplay(appName);
+        } catch (Exception e) {
+            return ResponseEntity.ok(Message.<Void>builder()
+                .code(CommonConstants.FAIL_CODE)
+                .msg(e.getMessage()).build());
+        }
+        return ResponseEntity.ok(Message.<Void>builder().build());
     }
 }

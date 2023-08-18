@@ -56,11 +56,11 @@ export class AppDefineService {
     }
   }
 
-  public getAppHierarchy(lang: string | undefined): Observable<Message<any>> {
+  public getAppHierarchy(lang: string | undefined, isFilter: boolean): Observable<Message<any>> {
     if (lang == undefined) {
       lang = 'en_US';
     }
-    let httpParams = new HttpParams().append('lang', lang);
+    let httpParams = new HttpParams().append('lang', lang).append('isFilter', isFilter);
     const options = { params: httpParams };
     return this.http.get<Message<any>>(app_hierarchy, options);
   }

@@ -46,6 +46,6 @@ class AppServiceTest {
 
     @Test
     void getAllAppHierarchy() {
-        assertDoesNotThrow(() -> appService.getAllAppHierarchy("en-US"));
+        assertDoesNotThrow(() -> appService.getAllAppHierarchy("en-US", false));
     }
 }
