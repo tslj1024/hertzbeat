@@ -34,6 +34,9 @@ public class CacheFactory {
     
     private static final ICacheService<String, Object> ALERT_CONVERGE_CACHE =
             new CaffeineCacheServiceImpl<>(10, 1000, Duration.ofDays(1), false);
+
+    private static final ICacheService<String, Object> PUSH_GATEWAY_CACHE =
+            new CaffeineCacheServiceImpl<>(10, 1000, Duration.ofDays(1), false);
     
     /**
      * get notice cache
@@ -57,5 +60,13 @@ public class CacheFactory {
      */
     public static ICacheService<String, Object> getAlertConvergeCache() {
         return ALERT_CONVERGE_CACHE;
+    }
+
+    /**
+     * get push gateway cache
+     * @return push gateway cache
+     */
+    public static ICacheService<String, Object> getPushGatewayCache() {
+        return PUSH_GATEWAY_CACHE;
     }
 }

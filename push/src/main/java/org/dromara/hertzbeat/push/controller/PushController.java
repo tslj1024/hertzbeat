@@ -19,7 +19,7 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
  */
 @Tag(name = "Metrics Push API | 监控数据推送API")
 @RestController
-@RequestMapping(value = "/api/push", produces = {APPLICATION_JSON_VALUE})
+@RequestMapping(value = "/api/push/common", produces = {APPLICATION_JSON_VALUE})
 public class PushController {
 
     @Autowired
